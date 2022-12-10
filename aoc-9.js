@@ -1,12 +1,5 @@
 const fs = require('fs')
 const input = fs.readFileSync('aoc-9.txt', 'utf8')
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-const L = 'L'
-const R = 'R'
-const U = 'U'
-const D = 'D'
-
 const document = input.split('\n')
 
 const instructions = document.map(row => {
@@ -14,135 +7,74 @@ const instructions = document.map(row => {
   return [direction, Number(amount)]
 })
 
-const skipRender = true
-const timeout = 60
-const size = 300
-const startPosX = size/2
-const startPosY = size/2
-const grid = new Array(size)
-  .fill(0)
-  .map(() => new Array(size*2)
-    .fill('.'))
+function start(snakesize) {
+  const rope = new Array(snakesize).fill(0)
+    .map(() => ({x: 300 / 2, y: 300 / 2}))
+  rope.visited = new Set()
+  const knot = rope[0]
 
-async function start(snakesize) {
-  const snake = {
-    head: {x: startPosX, y: startPosY},
-    tail: new Array(snakesize - 1).fill(0)
-      .map(() => ({x: startPosX, y: startPosY})),
-    visitedCords: []
-  }
+  for (const [direction, amount] of instructions) {
+    for (let step = 0; step < amount; step++) {
+      
+      if (direction === 'R') {
+        knot.x += 1
+      } else if (direction === 'L') {
+        knot.x -= 1
+      } else if (direction === 'U') {
+        knot.y -= 1
+      } else if (direction === 'D') {
+        knot.y += 1
+      }
 
-  const renderGrid = async (instruction) => {
-    if (skipRender) return
-    console.clear()
-    console.log(instruction)
-    lines = ''
-    for (y = 0; y < size; y++) {
-      for (x = 0; x < size; x++) {
-        lines += grid[x][y]
-        snake.tail.forEach((tail, num) => {
-          if (tail.x === x && tail.y === y) {
-            lines = lines.slice(0, -1)
-            lines += num
+      const moveTail = (prevKnot, index) => {
+        const knot = rope[index]
+        if (prevKnot.x + 1 < knot.x) { // left
+          knot.x -= 1
+          if (knot.y < prevKnot.y) {
+            knot.y += 1
+          } else if (knot.y > prevKnot.y) {
+            knot.y -= 1
           }
-        })
-        if (snake.head.x === x && snake.head.y === y) {
-          lines = lines.slice(0, -1)
-          lines += 'H'
+        } 
+        if (prevKnot.x - 1 > knot.x) { // right
+          knot.x += 1
+          if (knot.y < prevKnot.y) {
+            knot.y += 1
+          } else if (knot.y > prevKnot.y) {
+            knot.y -= 1
+          }
+        } 
+        if (prevKnot.y + 1 < knot.y) { // up
+          knot.y -= 1
+          if (knot.x < prevKnot.x) {
+            knot.x += 1
+          } else if (knot.x > prevKnot.x) {
+            knot.x -= 1
+          }
+        } 
+        if (prevKnot.y - 1 > knot.y) { // down
+          knot.y += 1
+          if (knot.x < prevKnot.x) {
+            knot.x += 1
+          } else if (knot.x > prevKnot.x) {
+            knot.x -= 1
+          }
+        }
+
+        if (index === rope.length - 1) {
+          rope.visited.add('' + knot.x + knot.y)
+        }
+
+        if (index < rope.length - 1) {
+          moveTail(knot, ++index)
         }
       }
-      lines += '\n'
-    }
-    console.log(lines)
-    await sleep(timeout)
-  }
 
-  const moveSnake = async () => {
-    const {head, tail} = snake
-    for (const instruction of instructions) {
-      const [direction, amount] = instruction
-  
-      for (let step = 0; step < amount; step++) {
-        
-        if (direction === R) {
-          head.x += 1
-        } else if (direction === L) {
-          head.x -= 1
-        } else if (direction === U) {
-          head.y -= 1
-        } else if (direction === D) {
-          head.y += 1
-        }
-
-        await renderGrid(instruction)
-
-        const moveTail = async (tailhead, index) => {
-          const tail = snake.tail[index]
-          if (tailhead.x + 1 < tail.x) { // left
-            within = false
-            tail.x -= 1
-            if (tail.y < tailhead.y) {
-              tail.y += 1
-            } else if (tail.y > tailhead.y) {
-              tail.y -= 1
-            }
-          } 
-          if (tailhead.x - 1 > tail.x) { // right
-            within = false
-            tail.x += 1
-            if (tail.y < tailhead.y) {
-              tail.y += 1
-            } else if (tail.y > tailhead.y) {
-              tail.y -= 1
-            }
-          } 
-          if (tailhead.y + 1 < tail.y) { // up
-            within = false
-            tail.y -= 1
-            if (tail.x < tailhead.x) {
-              tail.x += 1
-            } else if (tail.x > tailhead.x) {
-              tail.x -= 1
-            }
-          } 
-          if (tailhead.y - 1 > tail.y) { // down
-            within = false
-            tail.y += 1
-            if (tail.x < tailhead.x) {
-              tail.x += 1
-            } else if (tail.x > tailhead.x) {
-              tail.x -= 1
-            }
-          }
-
-          if (index === snake.tail.length - 1) {
-            snake.visitedCords.push('' + tail.x + tail.y)
-          }
-
-          if (index < snake.tail.length - 1) {
-            moveTail(tail, ++index)
-          }
-        }
-
-        await moveTail(snake.head, 0)
-        await renderGrid(instruction)
-      }
+      moveTail(knot, 0)
     }
   }
-
-  await moveSnake()
-  return snake
+  return rope
 }
 
-start(2)
-  .then((snake) => {
-    const filtered = [...new Set(snake.visitedCords)]
-    console.log('a: ',filtered.length)
-  })
-
-start(10)
-  .then((snake) => {
-    const filtered = [...new Set(snake.visitedCords)]
-    console.log('b: ',filtered.length)
-  })
-
+console.log('a: ',start(2).visited.size)
+console.log('b: ',start(10).visited.size)
